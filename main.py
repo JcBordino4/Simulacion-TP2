@@ -22,6 +22,18 @@ Luego, permite visualizar:
 """
 
 # Funciones de generación
+
+def validar_muestra(x):
+    try:
+        if x is None or str(x).strip() == "":
+            return False
+        val = int(x)
+        if val <= 0 or val > 1_000_000:
+            return False
+        return True
+    except ValueError:
+        raise False
+
 def uniform_gen(a, b, n):
     return [round(a + random.random() * (b - a), 4) for _ in range(n)]
 
@@ -97,28 +109,88 @@ def generar():
         choices=["Uniforme", "Exponencial", "Normal"]
     ).execute()
 
-    n = int(inquirer.number(
-        message="¿Tamaño de muestra? (hasta 1.000.000):",
-        validate=lambda x: 0 < int(x) <= 1_000_000,
-        default=1000
-    ).execute())
+    while True:
+        try:
+            n = inquirer.number(
+                message="¿Tamaño de muestra? (hasta 1.000.000):",
+                validate=lambda x: "Debe ingresar un número entero entre 1 y 1.000.000." if not x.strip() or not validar_muestra(x) else True,
+                default=1000
+            ).execute()
+
+            # Asegurarse de que el valor no sea una cadena vacía antes de convertirlo a entero
+            if not n.strip():
+                raise ValueError("Debe ingresar un número válido.")
+
+            n = int(n)
+            break  # Salir del bucle si el valor es válido
+        except ValueError as e:
+            print(f"[red]{e}[/red]")
+            print("[yellow]Por favor, intente de nuevo.[/yellow]")
 
     if dist == "Uniforme":
-        a = float(inquirer.text(message="Valor de [a]:").execute())
-        b = float(inquirer.text(message="Valor de [b]:").execute())
-        muestra = uniform_gen(a, b, n)
+        while True:
+            try:
+                a = inquirer.text(message="Valor de [a]:").execute()
+                if not a.strip() or not a.replace('.', '', 1).isdigit():
+                    raise ValueError("Debe ingresar un número válido para a.")
+                a = float(a)
 
+                b = inquirer.text(message="Valor de [b]:").execute()
+                if not b.strip() or not b.replace('.', '', 1).isdigit():
+                    raise ValueError("Debe ingresar un número válido para b.")
+                b = float(b)
+
+                if a >= b:
+                    raise ValueError("El valor de a debe ser menor que b.")
+
+                break  # Salir del bucle si ambos valores son válidos
+            except ValueError as e:
+                print(f"[red]{e}[/red]")
+                print("[yellow]Por favor, intente de nuevo.[/yellow]")
+
+        muestra = uniform_gen(a, b, n)
     elif dist == "Exponencial":
-        mu = float(inquirer.text(message="Valor de mu (media):").execute())
-        if mu <= 0:
-            print("[red]La media debe ser mayor a 0.[/red]")
-            raise typer.Abort()
+        while True:
+            try:
+                mu = inquirer.text(message="Valor de mu (media):").execute()
+                if not mu.strip() or not mu.replace('.', '', 1).isdigit():
+                    raise ValueError("Debe ingresar un número válido para mu.")
+                mu = float(mu)
+
+                if mu <= 0:
+                    raise ValueError("La media debe ser mayor a 0.")
+
+                break  # Salir del bucle si el valor es válido
+            except ValueError as e:
+                print(f"[red]{e}[/red]")
+                print("[yellow]Por favor, intente de nuevo.[/yellow]")
+
         muestra = exponencial_gen(mu, n)
 
     elif dist == "Normal":
-        mu = float(inquirer.text(message="Valor de mu (media):").execute())
-        sigma = float(inquirer.text(message="Valor de sigma (desviación estándar):").execute())
-        muestra = normal_gen(mu, sigma, n)
+        while True:
+            try:
+                # Validación para la media (μ)
+                mu = inquirer.text(message="Valor de mu (media):").execute()
+                if not mu.strip() or not mu.replace('.', '', 1).replace('-', '', 1).isdigit():
+                    raise ValueError("Debe ingresar un número válido para mu.")
+                mu = float(mu)
+
+                # Validación para la desviación estándar (σ)
+                sigma = inquirer.text(message="Valor de sigma (desviación estándar):").execute()
+                if not sigma.strip() or not sigma.replace('.', '', 1).isdigit():
+                    raise ValueError("Debe ingresar un número válido para sigma.")
+                sigma = float(sigma)
+
+                if sigma <= 0:
+                    raise ValueError("La desviación estándar (sigma) debe ser mayor a 0.")
+
+                break  # Salir del bucle si ambos valores son válidos
+            except ValueError as e:
+                print(f"[red]{e}[/red]")
+                print("[yellow]Por favor, intente de nuevo.[/yellow]")
+
+    muestra = normal_gen(mu, sigma, n)
 
     while True:
         opcion = inquirer.select(
