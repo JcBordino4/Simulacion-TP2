@@ -24,17 +24,6 @@ Luego, permite visualizar:
 # Funciones de generación
 
 
-def validar_muestra(x):
-    try:
-        if x is None or str(x).strip() == "":
-            return False
-        val = int(x)
-        if val <= 0 or val > 1_000_000:
-            return False
-        return True
-    except ValueError:
-        return False
-
 def uniform_gen(a, b, n):
     return [round(a + random.random() * (b - a), 4) for _ in range(n)]
 
@@ -100,6 +89,7 @@ def graficar_histograma(muestra, k):
     plt.grid(True)
     plt.show()
 
+
 @app.command()
 def generar():
     print(Panel("Generador de Variables Aleatorias", title="[bold cyan]Simulación - TP2", subtitle="Grupo 16", expand=False))
@@ -114,10 +104,9 @@ def generar():
         try:
             n = inquirer.number(
                 message="¿Tamaño de muestra? (hasta 1.000.000):",
-                validate=lambda x: "Debe ser entero entre 1 y 1.000.000" if not validar_muestra(str(x)) else True,
+                validate=lambda x: 0 <= int(x) < 1000000,
                 default=1000
             ).execute()
-
 
             n = int(n)
             break  # Salir del bucle si el valor es válido
