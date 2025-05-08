@@ -23,6 +23,7 @@ Luego, permite visualizar:
 
 # Funciones de generación
 
+
 def validar_muestra(x):
     try:
         if x is None or str(x).strip() == "":
@@ -32,7 +33,7 @@ def validar_muestra(x):
             return False
         return True
     except ValueError:
-        raise False
+        return False
 
 def uniform_gen(a, b, n):
     return [round(a + random.random() * (b - a), 4) for _ in range(n)]
@@ -113,13 +114,10 @@ def generar():
         try:
             n = inquirer.number(
                 message="¿Tamaño de muestra? (hasta 1.000.000):",
-                validate=lambda x: "Debe ingresar un número entero entre 1 y 1.000.000." if not x.strip() or not validar_muestra(x) else True,
+                validate=lambda x: "Debe ser entero entre 1 y 1.000.000" if not validar_muestra(str(x)) else True,
                 default=1000
             ).execute()
 
-            # Asegurarse de que el valor no sea una cadena vacía antes de convertirlo a entero
-            if not n.strip():
-                raise ValueError("Debe ingresar un número válido.")
 
             n = int(n)
             break  # Salir del bucle si el valor es válido
@@ -149,6 +147,7 @@ def generar():
                 print("[yellow]Por favor, intente de nuevo.[/yellow]")
 
         muestra = uniform_gen(a, b, n)
+
     elif dist == "Exponencial":
         while True:
             try:
@@ -190,7 +189,7 @@ def generar():
                 print(f"[red]{e}[/red]")
                 print("[yellow]Por favor, intente de nuevo.[/yellow]")
 
-    muestra = normal_gen(mu, sigma, n)
+        muestra = normal_gen(mu, sigma, n)
 
     while True:
         opcion = inquirer.select(
