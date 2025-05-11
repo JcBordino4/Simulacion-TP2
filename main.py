@@ -2,6 +2,7 @@ import random
 import math
 import typer
 import matplotlib.pyplot as plt
+import scipy.stats as stats
 from rich import print
 from rich.panel import Panel
 from rich.table import Table
@@ -188,6 +189,7 @@ def generar():
                 "Ver todos los valores",
                 "Ver tabla de frecuencias",
                 "Ver histograma gráfico",
+                "Realizar prueba Chi-Cuadrado",
                 "Salir"
             ]
         ).execute()
@@ -217,9 +219,45 @@ def generar():
             ).execute())
             graficar_histograma(muestra, k)
 
+        elif opcion == "Realizar prueba Chi-Cuadrado":
+            k = int(inquirer.select(
+                message="¿Cuántos intervalos para la prueba?",
+                choices=["10", "15", "20", "25"]
+            ).execute())
+            prueba_bondad(muestra, k)
+
         elif opcion == "Salir":
             print("[green]Gracias por usar el generador. ¡Hasta luego![/green]")
             break
+
+def prueba_bondad(muestra, k):
+    minimo = min(muestra)
+    maximo = max(muestra)
+    ancho_intervalo = (maximo - minimo) / k
+    intervalos = [0] * k
+
+    for valor in muestra:
+        idx = int((valor - minimo) / ancho_intervalo)
+        if idx == k:
+            idx -= 1
+        intervalos[idx] += 1
+
+    frecuencias_observadas = intervalos
+    n = len(muestra)
+    frecuencia_esperada = n / k
+    frecuencias_esperadas = [frecuencia_esperada] * k
+
+    chi2, p_valor = stats.chisquare(f_obs=frecuencias_observadas, f_exp=frecuencias_esperadas)
+
+    print(Panel(f"""
+        [bold]Prueba de bondad de ajuste Chi-Cuadrado[/bold]
+
+        Valor Chi² calculado: [cyan]{chi2:.4f}[/cyan]
+        Valor-p: [cyan]{p_valor:.4f}[/cyan]
+
+        {"[green]No se rechaza[/green]" if p_valor > 0.05 else "[red]Se rechaza[/red]"} la hipótesis nula de que la muestra proviene de una distribución uniforme.
+        """, title="Resultado Chi-Cuadrado", expand=False))
+
 
 if __name__ == "__main__":
     app()
