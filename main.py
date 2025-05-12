@@ -16,10 +16,11 @@ Este programa genera números aleatorios según tres distribuciones:
 • Exponencial negativa (μ)
 • Normal (μ, σ)
 
-Luego, permite visualizar:
-• Los valores generados.
-• Tabla de frecuencias por intervalos.
-• Histograma gráfico (matplotlib).
+Luego, permite:
+• Visualizar los valores generados.
+• Generar una tabla de frecuencias por intervalos.
+• Generar Histograma gráfico (usamos matplotlib).
+• Realizar pruebas de bondad de ajuste para la distribucion elegida (con Chi-cuadrado).
 """
 
 # Funciones de generación
@@ -28,9 +29,11 @@ Luego, permite visualizar:
 def uniform_gen(a, b, n):
     return [round(a + random.random() * (b - a), 4) for _ in range(n)]
 
+
 def exponencial_gen(mu, n):
     lam = 1 / mu
     return [round(-1 / lam * math.log(1 - random.random()), 4) for _ in range(n)]
+
 
 def normal_gen(mu, sigma, n):
     resultados = []
@@ -49,6 +52,7 @@ def normal_gen(mu, sigma, n):
         resultados.append(round(z * sigma + mu, 4))
     return resultados
 
+
 def mostrar_todos(muestra):
     table = Table(title=f"Todos los valores generados ({len(muestra)})")
     table.add_column("Índice", style="cyan", justify="right")
@@ -57,6 +61,7 @@ def mostrar_todos(muestra):
     for i, val in enumerate(muestra):
         table.add_row(str(i), str(val))
     print(table)
+
 
 def tabla_frecuencias(muestra, k):
     minimo = min(muestra)
@@ -82,6 +87,7 @@ def tabla_frecuencias(muestra, k):
 
     print(table)
 
+
 def graficar_histograma(muestra, k):
     plt.hist(muestra, bins=k, edgecolor='black')
     plt.title("Histograma de Frecuencia")
@@ -89,6 +95,74 @@ def graficar_histograma(muestra, k):
     plt.ylabel("Frecuencia")
     plt.grid(True)
     plt.show()
+
+
+def prueba_bondad(muestra, k, dist, params):
+    minimo = min(muestra)
+    maximo = max(muestra)
+    ancho_intervalo = (maximo - minimo) / k
+    intervalos = [0] * k
+
+    # Contar frecuencias observadas por intervalo
+    for valor in muestra:
+        idx = int((valor - minimo) / ancho_intervalo)
+        if idx == k:  # por si valor == maximo
+            idx -= 1
+        intervalos[idx] += 1
+
+    frecuencias_observadas = intervalos
+    n = len(muestra)
+
+    # Calcular frecuencias esperadas según la distribución elegida
+    frecuencias_esperadas = []
+    for i in range(k):
+        li = minimo + i * ancho_intervalo
+        ls = li + ancho_intervalo
+
+        if dist == "Uniforme":
+            a, b = params
+            prob = stats.uniform.cdf(ls, loc=a, scale=b - a) - stats.uniform.cdf(li, loc=a, scale=b - a)
+
+        elif dist == "Exponencial":
+            mu, = params
+            prob = stats.expon.cdf(ls, scale=mu) - stats.expon.cdf(li, scale=mu)
+
+        elif dist == "Normal":
+            mu, sigma = params
+            prob = stats.norm.cdf(ls, loc=mu, scale=sigma) - stats.norm.cdf(li, loc=mu, scale=sigma)
+
+        else:
+            raise ValueError("Distribución no soportada.")
+
+        frecuencias_esperadas.append(prob * n)
+
+    # Ajustar las frecuencias esperadas para que sumen igual que las observadas
+    suma_obs = sum(frecuencias_observadas)
+    suma_esp = sum(frecuencias_esperadas)
+    frecuencias_esperadas = [fe * suma_obs / suma_esp for fe in frecuencias_esperadas]
+
+    # Realizar prueba chi-cuadrado
+    chi2, p_valor = stats.chisquare(f_obs=frecuencias_observadas, f_exp=frecuencias_esperadas)
+
+    # Mostrar resultados
+    print(Panel(f"""
+        [bold]Prueba de bondad de ajuste Chi-Cuadrado[/bold]
+    
+        Valor Chi² calculado: [cyan]{chi2:.4f}[/cyan]
+        Valor-p: [cyan]{p_valor:.4f}[/cyan]
+    
+        {"[green]No se rechaza[/green]" if p_valor > 0.05 else "[red]Se rechaza[/red]"} la hipótesis nula de que la muestra proviene de una distribución {dist.lower()}.
+    
+        [bold][underline]¿Qué significa esto?[/underline][/bold]
+        
+        El valor Chi² indica cuánto difieren las frecuencias observadas de las esperadas según la distribución teórica.
+        El valor-p representa la probabilidad de obtener una diferencia igual o mayor a la observada, 
+        si la muestra realmente sigue esa distribución. 
+        Un valor-p alto (mayor a 0.05) sugiere que la diferencia es pequeña y puede deberse al azar, 
+        por lo tanto no se rechaza la hipótesis nula.
+        """, title="Resultado Chi-Cuadrado", expand=False))
+
+
 
 
 @app.command()
@@ -118,20 +192,13 @@ def generar():
     if dist == "Uniforme":
         while True:
             try:
-                a = inquirer.text(message="Valor de [a]:").execute()
-                if not a.strip() or not a.replace('.', '', 1).isdigit():
-                    raise ValueError("Debe ingresar un número válido para a.")
-                a = float(a)
-
-                b = inquirer.text(message="Valor de [b]:").execute()
-                if not b.strip() or not b.replace('.', '', 1).isdigit():
-                    raise ValueError("Debe ingresar un número válido para b.")
-                b = float(b)
+                a = float(inquirer.text(message="Valor de [a]:").execute())
+                b = float(inquirer.text(message="Valor de [b]:").execute())
 
                 if a >= b:
                     raise ValueError("El valor de a debe ser menor que b.")
 
-                break  # Salir del bucle si ambos valores son válidos
+                break
             except ValueError as e:
                 print(f"[red]{e}[/red]")
                 print("[yellow]Por favor, intente de nuevo.[/yellow]")
@@ -224,39 +291,19 @@ def generar():
                 message="¿Cuántos intervalos para la prueba?",
                 choices=["10", "15", "20", "25"]
             ).execute())
-            prueba_bondad(muestra, k)
+
+            if dist == "Uniforme":
+                params = (a, b)
+            elif dist == "Exponencial":
+                params = (mu,)
+            elif dist == "Normal":
+                params = (mu, sigma)
+
+            prueba_bondad(muestra, k, dist, params)
 
         elif opcion == "Salir":
             print("[green]Gracias por usar el generador. ¡Hasta luego![/green]")
             break
-
-def prueba_bondad(muestra, k):
-    minimo = min(muestra)
-    maximo = max(muestra)
-    ancho_intervalo = (maximo - minimo) / k
-    intervalos = [0] * k
-
-    for valor in muestra:
-        idx = int((valor - minimo) / ancho_intervalo)
-        if idx == k:
-            idx -= 1
-        intervalos[idx] += 1
-
-    frecuencias_observadas = intervalos
-    n = len(muestra)
-    frecuencia_esperada = n / k
-    frecuencias_esperadas = [frecuencia_esperada] * k
-
-    chi2, p_valor = stats.chisquare(f_obs=frecuencias_observadas, f_exp=frecuencias_esperadas)
-
-    print(Panel(f"""
-        [bold]Prueba de bondad de ajuste Chi-Cuadrado[/bold]
-
-        Valor Chi² calculado: [cyan]{chi2:.4f}[/cyan]
-        Valor-p: [cyan]{p_valor:.4f}[/cyan]
-
-        {"[green]No se rechaza[/green]" if p_valor > 0.05 else "[red]Se rechaza[/red]"} la hipótesis nula de que la muestra proviene de una distribución uniforme.
-        """, title="Resultado Chi-Cuadrado", expand=False))
 
 
 if __name__ == "__main__":
