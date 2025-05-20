@@ -141,26 +141,52 @@ def prueba_bondad(muestra, k, dist, params):
     suma_esp = sum(frecuencias_esperadas)
     frecuencias_esperadas = [fe * suma_obs / suma_esp for fe in frecuencias_esperadas]
 
-    # Realizar prueba chi-cuadrado
+    # Tabla de detalle
+    table = Table(title=f"Detalle de Cálculo Chi-Cuadrado (k={k})")
+    table.add_column("Intervalo", style="cyan", justify="center")
+    table.add_column("Fo", style="magenta", justify="right")
+    table.add_column("Fe", style="yellow", justify="right")
+    table.add_column("(Fo-Fe)²/Fe", style="green", justify="right")
+    table.add_column("Chi² Acum.", style="bold", justify="right")
+
+    chi2_acum = 0
+    for i in range(k):
+        li = round(minimo + i * ancho_intervalo, 4)
+        ls = round(li + ancho_intervalo, 4)
+        fo = frecuencias_observadas[i]
+        fe = frecuencias_esperadas[i]
+        chi_i = (fo - fe) ** 2 / fe if fe != 0 else 0
+        chi2_acum += chi_i
+
+        table.add_row(
+            f"[{li}, {ls})",
+            str(fo),
+            f"{fe:.2f}",
+            f"{chi_i:.4f}",
+            f"{chi2_acum:.4f}"
+        )
+
+    print(table)
+
+    # Resultado final usando scipy (opcional, para comparar)
     chi2, p_valor = stats.chisquare(f_obs=frecuencias_observadas, f_exp=frecuencias_esperadas)
 
-    # Mostrar resultados
     print(Panel(f"""
-        [bold]Prueba de bondad de ajuste Chi-Cuadrado[/bold]
-    
-        Valor Chi² calculado: [cyan]{chi2:.4f}[/cyan]
-        Valor-p: [cyan]{p_valor:.4f}[/cyan]
-    
-        {"[green]No se rechaza[/green]" if p_valor > 0.05 else "[red]Se rechaza[/red]"} la hipótesis nula de que la muestra proviene de una distribución {dist.lower()}.
-    
-        [bold][underline]¿Qué significa esto?[/underline][/bold]
-        
-        El valor Chi² indica cuánto difieren las frecuencias observadas de las esperadas según la distribución teórica.
-        El valor-p representa la probabilidad de obtener una diferencia igual o mayor a la observada, 
-        si la muestra realmente sigue esa distribución. 
-        Un valor-p alto (mayor a 0.05) sugiere que la diferencia es pequeña y puede deberse al azar, 
-        por lo tanto no se rechaza la hipótesis nula.
-        """, title="Resultado Chi-Cuadrado", expand=False))
+[bold]Prueba de bondad de ajuste Chi-Cuadrado[/bold]
+
+Valor Chi² calculado: [cyan]{chi2:.4f}[/cyan]
+Valor-p: [cyan]{p_valor:.4f}[/cyan]
+
+{"[green]No se rechaza[/green]" if p_valor > 0.05 else "[red]Se rechaza[/red]"} la hipótesis nula de que la muestra proviene de una distribución {dist.lower()}.
+
+[bold][underline]¿Qué significa esto?[/underline][/bold]
+
+El valor Chi² indica cuánto difieren las frecuencias observadas de las esperadas según la distribución teórica.
+El valor-p representa la probabilidad de obtener una diferencia igual o mayor a la observada, 
+si la muestra realmente sigue esa distribución. 
+Un valor-p alto (mayor a 0.05) sugiere que la diferencia es pequeña y puede deberse al azar, 
+por lo tanto no se rechaza la hipótesis nula.
+""", title="Resultado Chi-Cuadrado", expand=False))
 
 
 
