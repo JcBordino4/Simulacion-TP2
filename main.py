@@ -97,6 +97,7 @@ def graficar_histograma(muestra, k):
     plt.show()
 
 
+
 def prueba_bondad(muestra, k, dist, params):
     minimo = min(muestra)
     maximo = max(muestra)
@@ -141,41 +142,110 @@ def prueba_bondad(muestra, k, dist, params):
     suma_esp = sum(frecuencias_esperadas)
     frecuencias_esperadas = [fe * suma_obs / suma_esp for fe in frecuencias_esperadas]
 
-    # Tabla de detalle
-    table = Table(title=f"Detalle de Cálculo Chi-Cuadrado (k={k})")
-    table.add_column("Intervalo", style="cyan", justify="center")
-    table.add_column("Fo", style="magenta", justify="right")
-    table.add_column("Fe", style="yellow", justify="right")
-    table.add_column("(Fo-Fe)²/Fe", style="green", justify="right")
-    table.add_column("Chi² Acum.", style="bold", justify="right")
+    # --- 1) Mostrar tabla original ---
+    table_original = Table(title=f"Tabla Original Chi-Cuadrado (k={k})")
+    table_original.add_column("Intervalo", style="cyan", justify="center")
+    table_original.add_column("Fo", style="magenta", justify="right")
+    table_original.add_column("Fe", style="yellow", justify="right")
+    table_original.add_column("(Fo-Fe)²/Fe", style="green", justify="right")
 
-    chi2_acum = 0
     for i in range(k):
         li = round(minimo + i * ancho_intervalo, 4)
         ls = round(li + ancho_intervalo, 4)
         fo = frecuencias_observadas[i]
         fe = frecuencias_esperadas[i]
         chi_i = (fo - fe) ** 2 / fe if fe != 0 else 0
+
+        table_original.add_row(
+            f"[{li}, {ls})",
+            str(fo),
+            f"{fe:.2f}",
+            f"{chi_i:.4f}"
+        )
+
+    print(table_original)
+
+    # --- 2) Agrupar intervalos con Fe < 5 ---
+    fo_agrup = []
+    fe_agrup = []
+    intervalos_agrupados = []
+    chi2_acum = 0
+
+    acumulado_fo = 0
+    acumulado_fe = 0
+    li_actual = minimo
+
+    for i in range(k):
+        acumulado_fo += frecuencias_observadas[i]
+        acumulado_fe += frecuencias_esperadas[i]
+
+        # Cuando la Fe acumulada es >= 5, cerramos el intervalo agrupado
+        if acumulado_fe >= 5:
+            ls_actual = minimo + (i + 1) * ancho_intervalo
+            intervalos_agrupados.append((round(li_actual,4), round(ls_actual,4)))
+            fo_agrup.append(acumulado_fo)
+            fe_agrup.append(acumulado_fe)
+            acumulado_fo = 0
+            acumulado_fe = 0
+            li_actual = ls_actual
+
+    # Si quedó algo sin agrupar, agregarlo al último intervalo
+    if acumulado_fe > 0:
+        if intervalos_agrupados:
+            # fusionar con el último intervalo
+            ult_li, ult_ls = intervalos_agrupados[-1]
+            intervalos_agrupados[-1] = (ult_li, round(minimo + k * ancho_intervalo,4))
+            fo_agrup[-1] += acumulado_fo
+            fe_agrup[-1] += acumulado_fe
+        else:
+            # si no había intervalos (caso raro)
+            intervalos_agrupados.append((round(li_actual,4), round(minimo + k * ancho_intervalo,4)))
+            fo_agrup.append(acumulado_fo)
+            fe_agrup.append(acumulado_fe)
+
+    # --- 3) Mostrar tabla con intervalos agrupados ---
+    table_agrup = Table(title=f"Tabla Agrupada Chi-Cuadrado (sin Fe < 5)")
+    table_agrup.add_column("Intervalo", style="cyan", justify="center")
+    table_agrup.add_column("Fo", style="magenta", justify="right")
+    table_agrup.add_column("Fe", style="yellow", justify="right")
+    table_agrup.add_column("(Fo-Fe)²/Fe", style="green", justify="right")
+    table_agrup.add_column("Chi² Acum.", style="bold", justify="right")
+
+    for i in range(len(fo_agrup)):
+        fo = fo_agrup[i]
+        fe = fe_agrup[i]
+        chi_i = (fo - fe) ** 2 / fe if fe != 0 else 0
         chi2_acum += chi_i
 
-        table.add_row(
-            f"[{li}, {ls})",
+        li, ls = intervalos_agrupados[i]
+        intervalo_str = f"[{li}, {ls})"
+        table_agrup.add_row(
+            intervalo_str,
             str(fo),
             f"{fe:.2f}",
             f"{chi_i:.4f}",
             f"{chi2_acum:.4f}"
         )
 
-    print(table)
+    print(table_agrup)
 
-    # Resultado final usando scipy (opcional, para comparar)
-    chi2, p_valor = stats.chisquare(f_obs=frecuencias_observadas, f_exp=frecuencias_esperadas)
+    # --- 4) Resultado final usando scipy para comparar (con intervalos agrupados) ---
+    chi2, p_valor = stats.chisquare(f_obs=fo_agrup, f_exp=fe_agrup)
+
+    # Determinar grados de libertad
+    k_agrup = len(fo_agrup)
+    if dist == "Normal":
+        m = 2
+    else:
+        m = 1
+    v = k_agrup - 1 - m
 
     print(Panel(f"""
-[bold]Prueba de bondad de ajuste Chi-Cuadrado[/bold]
+[bold]Prueba de bondad de ajuste Chi-Cuadrado (intervalos agrupados)[/bold]
 
 Valor Chi² calculado: [cyan]{chi2:.4f}[/cyan]
 Valor-p: [cyan]{p_valor:.4f}[/cyan]
+Grados de libertad (v): [cyan]{v}[/cyan]  →  v = k - 1 - m  (donde k = {k_agrup}, m = {m})
 
 {"[green]No se rechaza[/green]" if p_valor > 0.05 else "[red]Se rechaza[/red]"} la hipótesis nula de que la muestra proviene de una distribución {dist.lower()}.
 
@@ -187,7 +257,6 @@ si la muestra realmente sigue esa distribución.
 Un valor-p alto (mayor a 0.05) sugiere que la diferencia es pequeña y puede deberse al azar, 
 por lo tanto no se rechaza la hipótesis nula.
 """, title="Resultado Chi-Cuadrado", expand=False))
-
 
 
 
