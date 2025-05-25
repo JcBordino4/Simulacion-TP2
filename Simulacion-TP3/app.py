@@ -1,28 +1,76 @@
 import streamlit as st
+import pandas as pd
+from simulacion_inventario_montecarlo import simular_semana
 
-st.title("Simulación de Inventario - Librería Campus XXI")
+# ----------------------------- INTERFAZ ------------------------------ #
+st.title("Simulación Montecarlo - Librería Campus XXI")
 
-st.header("Parámetros de Simulación")
+st.sidebar.header("Parámetros del sistema")
 
-# Parámetros ingresables
-prob_demandas = st.text_input("Probabilidades de demanda (ej: 50,15,25,10)", "50,15,25,10")
-prob_entregas = st.text_input("Probabilidades de tiempo de entrega (ej: 0.3,0.4,0.3)", "0.3,0.4,0.3")
-prob_defectuosos = st.slider("Probabilidad de libro defectuoso (%)", 0, 100, 20)
+# Entradas del usuario
+valores_demanda = [0, 1, 2, 3]
+try:
+    prob_demanda = [float(x.strip()) / 100 for x in st.sidebar.text_input("Probabilidades demanda (%)", "50,15,25,10").split(",")]
+except ValueError:
+    st.error("⚠️ Asegurate de ingresar números separados por comas, ej: 50,15,25,10")
+    prob_demanda = []
 
-costo_tenencia = st.number_input("Costo de tenencia ($/libro/semana)", value=30)
-costo_pedido = st.number_input("Costo de pedido ($)", value=200)
-costo_agotamiento = st.number_input("Costo de agotamiento ($/libro)", value=50)
+valores_tiempo = [1, 2, 3]
+prob_tiempo = [float(x) for x in st.sidebar.text_input("Probabilidades tiempo entrega", "0.3,0.4,0.3").split(",")]
 
-inventario_inicial = st.number_input("Inventario inicial (libros)", value=7)
-punto_reposicion = st.number_input("Punto de reposición (libros)", value=2)
-cantidad_reposicion = st.number_input("Cantidad a reponer", value=5)
+prob_defectuoso = 1 - (st.sidebar.slider("Porcentaje en condiciones", 0, 100, 80) / 100)
 
-# Parámetros de simulación
-semanas_a_simular = st.number_input("Cantidad de semanas a simular (N)", value=100000)
-mostrar_desde = st.number_input("Mostrar vector desde la semana (j)", value=0)
-mostrar_cantidad = st.number_input("Cantidad de filas a mostrar (i)", value=10)
+costo_inventario = st.sidebar.number_input("Costo de inventario", value=30)
+costo_pedido = st.sidebar.number_input("Costo de pedido", value=200)
+costo_stockout = st.sidebar.number_input("Costo de stockout", value=50)
 
-if st.button("Ejecutar Simulación"):
-    st.write("Acá iría la lógica de la simulación")
-    # df_resultado = simular(...)
-    # st.dataframe(df_resultado.iloc[mostrar_desde:mostrar_desde+mostrar_cantidad])
+inventario_inicial = st.sidebar.number_input("Inventario inicial", value=7)
+punto_reposicion = st.sidebar.number_input("Punto de reposición", value=2)
+cantidad_pedido = st.sidebar.number_input("Cantidad a pedir", value=5)
+
+n_semanas = st.sidebar.number_input("Cantidad de semanas a simular", value=100)
+
+mostrar_desde = st.sidebar.number_input("Mostrar desde semana", value=0)
+mostrar_cant = st.sidebar.number_input("Cantidad de semanas a mostrar", value=20)
+
+# ------------------------- EJECUTAR SIMULACIÓN ------------------------ #
+if st.button("▶ Ejecutar simulación"):
+    config = {
+        "valores_demanda": valores_demanda,
+        "prob_demanda": prob_demanda,
+        "valores_tiempo_entrega": valores_tiempo,
+        "prob_tiempo_entrega": prob_tiempo,
+        "prob_defectuoso": prob_defectuoso,
+        "costo_inventario": costo_inventario,
+        "costo_pedido": costo_pedido,
+        "costo_stockout": costo_stockout,
+        "punto_reposicion": punto_reposicion,
+        "cantidad_pedido": cantidad_pedido
+    }
+
+    estado = {
+        "inventario": inventario_inicial,
+        "pedido_en_camino": False,
+        "tiempo_entrega": 0
+    }
+
+    resultados = []
+    costo_acumulado = 0
+    for semana in range(n_semanas):
+        fila = simular_semana(semana + 1, estado, config)
+        costo_acumulado += fila["costo_total"]
+        fila["costo_acumulado"] = costo_acumulado
+        resultados.append(fila)
+
+    df = pd.DataFrame(resultados)
+
+    st.subheader("Resultados")
+    df_mostrar = df.iloc[int(mostrar_desde):int(mostrar_desde) + int(mostrar_cant)]
+    st.dataframe(df_mostrar, use_container_width=True, hide_index=True)
+
+    st.subheader("Fila final (última semana)")
+    st.write(df.iloc[-1:])
+
+    st.subheader("Costo total acumulado")
+    st.metric("Total", f"${df['costo_acumulado'].iloc[-1]:,.2f}")
+
