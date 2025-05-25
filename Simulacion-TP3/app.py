@@ -24,6 +24,5 @@ mostrar_cantidad = st.number_input("Cantidad de filas a mostrar (i)", value=10)
 
 if st.button("Ejecutar Simulación"):
     st.write("Acá iría la lógica de la simulación")
-    # Ejemplo: podés ir cargando una tabla con los datos simulados
     # df_resultado = simular(...)
     # st.dataframe(df_resultado.iloc[mostrar_desde:mostrar_desde+mostrar_cantidad])
