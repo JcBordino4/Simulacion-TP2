@@ -88,3 +88,6 @@ if st.button("▶ Ejecutar simulación"):
     st.subheader("Costo total acumulado")
     st.metric("Total", f"${df['costo_acumulado'].iloc[-1]:,.2f}")
 
+    st.subheader("Costo promedio por semana")
+    st.metric("Promedio", f"${(df['costo_acumulado']/n_semanas).iloc[-1]:,.2f}")
+
