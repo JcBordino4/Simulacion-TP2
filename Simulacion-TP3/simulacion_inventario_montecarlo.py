@@ -68,7 +68,7 @@ def simular_semana(semana, estado, config):
         "stockout": stockout,
         "costo_stockout": costo_stockout,
         "rnd_defec": round(rnd_defec, 2) if rnd_defec is not None else None,
-        "recibido": cantidad_recibida,
+        "en condiciones": cantidad_recibida,
         "defectuosos": config["cantidad_pedido"] - cantidad_recibida if llegada_pedido else None,
         "costo_pedido": costo_pedido,
         "rnd_tiempo": round(rnd_tiempo, 2) if rnd_tiempo is not None else None,
