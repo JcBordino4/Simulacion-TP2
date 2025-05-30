@@ -56,45 +56,48 @@ mostrar_cant = st.sidebar.number_input("Cantidad de semanas a mostrar", value=20
 
 if not b_dem and not b_tiempo:
     if st.button("▶ Ejecutar simulación"):
-        config = {
-            "valores_demanda": valores_demanda,
-            "prob_demanda": prob_demanda,
-            "valores_tiempo_entrega": valores_tiempo,
-            "prob_tiempo_entrega": prob_tiempo,
-            "prob_defectuoso": prob_defectuoso,
-            "costo_inventario": costo_inventario,
-            "costo_pedido": costo_pedido,
-            "costo_stockout": costo_stockout,
-            "punto_reposicion": punto_reposicion,
-            "cantidad_pedido": cantidad_pedido
-        }
+        if n_semanas < 0:
+            st.error("La cantidad de semanas a simular debe ser mayor o igual a cero.")
+        else:
+            config = {
+                "valores_demanda": valores_demanda,
+                "prob_demanda": prob_demanda,
+                "valores_tiempo_entrega": valores_tiempo,
+                "prob_tiempo_entrega": prob_tiempo,
+                "prob_defectuoso": prob_defectuoso,
+                "costo_inventario": costo_inventario,
+                "costo_pedido": costo_pedido,
+                "costo_stockout": costo_stockout,
+                "punto_reposicion": punto_reposicion,
+                "cantidad_pedido": cantidad_pedido
+            }
 
-        estado = {
-            "inventario": inventario_inicial,
-            "pedido_en_camino": False,
-            "tiempo_entrega": 0
-        }
+            estado = {
+                "inventario": inventario_inicial,
+                "pedido_en_camino": False,
+                "tiempo_entrega": 0
+            }
 
-        resultados = []
-        costo_acumulado = 0
-        for semana in range(n_semanas):
-            fila = simular_semana(semana + 1, estado, config)
-            costo_acumulado += fila["costo_total"]
-            fila["costo_acumulado"] = costo_acumulado
-            resultados.append(fila)
+            resultados = []
+            costo_acumulado = 0
 
-        df = pd.DataFrame(resultados)
+            for semana in range(n_semanas):
+                fila = simular_semana(semana + 1, estado, config)
+                costo_acumulado += fila["costo_total"]
+                fila["costo_acumulado"] = costo_acumulado
+                resultados.append(fila)
 
-        st.subheader("Resultados")
-        df_mostrar = df.iloc[int(mostrar_desde):int(mostrar_desde) + int(mostrar_cant)]
-        st.dataframe(df_mostrar, use_container_width=True, hide_index=True)
+            df = pd.DataFrame(resultados)
 
-        st.subheader("Fila final (última semana)")
-        st.write(df.iloc[-1:])
+            st.subheader("Resultados")
+            df_mostrar = df.iloc[int(mostrar_desde):int(mostrar_desde) + int(mostrar_cant)]
+            st.dataframe(df_mostrar, use_container_width=True, hide_index=True)
 
-        st.subheader("Costo total acumulado")
-        st.metric("Total", f"${df['costo_acumulado'].iloc[-1]:,.2f}")
+            st.subheader("Fila final (última semana)")
+            st.write(df.iloc[-1:])
 
-        st.subheader("Costo promedio por semana")
-        st.metric("Promedio", f"${(df['costo_acumulado']/n_semanas).iloc[-1]:,.2f}")
+            st.subheader("Costo total acumulado")
+            st.metric("Total", f"${df['costo_acumulado'].iloc[-1]:,.2f}")
 
+            st.subheader("Costo promedio por semana")
+            st.metric("Promedio", f"${(df['costo_acumulado']/n_semanas).iloc[-1]:,.2f}")
